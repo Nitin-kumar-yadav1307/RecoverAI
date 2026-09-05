@@ -53,6 +53,8 @@ export function token(): string | null {
   return sessionStorage.getItem('recoverai_token');
 }
 
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const t = token();
   const res = await fetch(`${API}${path}`, {

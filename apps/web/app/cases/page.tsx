@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCases, getAnalytics, logout, recordPromise, token, CaseRow } from '../../lib/api';
+import { getCases, getAnalytics, logout, recordPromise, token, API_BASE, CaseRow } from '../../lib/api';
 
 interface Analytics {
   totalCases: number;
@@ -54,7 +54,7 @@ export default function CasesPage() {
   async function openCheckout() {
     setCheckoutMsg('Creating order...');
     try {
-      const res = await fetch('/api/razorpay/create-order', {
+      const res = await fetch(`${API_BASE}/razorpay/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amountMinor: 249900 }),
