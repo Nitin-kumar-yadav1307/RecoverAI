@@ -1,0 +1,365 @@
+// RecoverAI database schema
+// Money amounts are stored as integer minor units (Int BigInt field names end in _minor).
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MerchantStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  AUTHORIZED
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum FailureCategory {
+  TEMPORARY_BANK_ISSUE
+  INSUFFICIENT_FUNDS
+  EXPIRED_CARD
+  CARD_DECLINED
+  NETWORK_ERROR
+  PAYMENT_METHOD_INVALID
+  PAYMENT_METHOD_EXPIRED
+  DO_NOT_HONOR
+  AUTHENTICATION_FAILED
+  RISK_FRAUD
+  PROVIDER_ERROR
+  HIGH_RISK
+  UNKNOWN
+}
+
+enum RecoveryCaseStatus {
+  OPEN
+  DIAGNOSING
+  PLANNED
+  POLICY_CHECK
+  APPROVED
+  REJECTED
+  SCHEDULED
+  WAITING
+  ACTION_REQUIRED
+  IN_PROGRESS
+  EXECUTING
+  OBSERVING
+  NOT_RECOVERED
+  RECOVERED
+  ESCALATED
+  SUPPRESSED
+  CLOSED
+}
+
+enum ActionType {
+  RETRY_PAYMENT
+  SEND_EMAIL
+  SEND_WHATSAPP
+  REQUEST_PAYMENT_METHOD_UPDATE
+  WAIT
+  ESCALATE
+  CLOSE
+}
+
+enum ActionStatus {
+  DRAFT
+  SCHEDULED
+  APPROVED
+  REJECTED
+  BLOCKED
+  EXECUTING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum PolicyDecision {
+  ALLOWED
+  BLOCKED
+  ESCALATE
+  MANUAL_REVIEW
+}
+
+enum PromiseStatus {
+  ACTIVE
+  FULFILLED
+  BROKEN
+  CANCELLED
+  EXPIRED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AssignmentMode {
+  AUTONOMOUS
+  MANUAL
+  HYBRID
+}
+
+enum Channel {
+  EMAIL
+  WHATSAPP
+  SMS
+}
+
+enum ActorType {
+  USER
+  AGENT
+  SYSTEM
+  CUSTOMER
+  WEBHOOK
+}
+
+enum Currency {
+  INR
+}
+model Merchant {
+  id             String         @id @default(cuid()) @map("id")
+  name           String
+  email          String         @unique
+  passwordHash   String?        @map("password_hash")
+  currency       Currency       @default(INR)
+  timezone       String         @default("Asia/Kolkata")
+  status         MerchantStatus @default(ACTIVE)
+  customers      Customer[]
+  subscriptions  Subscription[]
+  payments       Payment[]
+  recoveryCases  RecoveryCase[]
+  policy         MerchantPolicy?
+  promises       PromiseToPay[]
+  auditEvents    AuditEvent[]
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@map("merchants")
+}
+
+model Customer {
+  id                   String           @id @default(cuid()) @map("id")
+  merchant_id          String           @map("merchant_id")
+  external_customer_id String           @map("external_customer_id")
+  name                 String
+  email                String?
+  phone                String?
+  status               CustomerStatus   @default(ACTIVE)
+  timezone             String           @default("Asia/Kolkata")
+  merchant             Merchant         @relation(fields: [merchant_id], references: [id])
+  subscriptions        Subscription[]
+  payments             Payment[]
+  recoveryCases        RecoveryCase[]
+  promises             PromiseToPay[]
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+
+  @@index([merchant_id, external_customer_id])
+  @@map("customers")
+}
+
+model Subscription {
+  id                       String             @id @default(cuid()) @map("id")
+  merchant_id              String             @map("merchant_id")
+  customer_id              String             @map("customer_id")
+  external_subscription_id String             @unique @map("external_subscription_id")
+  amount                   Int                @map("amount_minor") // minor units (paise)
+  currency                 Currency           @default(INR)
+  billing_interval         String             @default("monthly")
+  status                   SubscriptionStatus @default(ACTIVE)
+  next_billing_at          DateTime?          @map("next_billing_at")
+  merchant                 Merchant           @relation(fields: [merchant_id], references: [id])
+  customer                 Customer           @relation(fields: [customer_id], references: [id])
+  payments                 Payment[]
+  createdAt                DateTime           @default(now()) @map("created_at")
+  updatedAt                DateTime           @updatedAt @map("updated_at")
+
+  @@index([merchant_id, customer_id])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                  String        @id @default(cuid()) @map("id")
+  merchant_id         String        @map("merchant_id")
+  customer_id         String        @map("customer_id")
+  subscription_id     String?       @map("subscription_id")
+  external_payment_id String        @unique @map("external_payment_id")
+  amount              Int           @map("amount_minor")
+  currency            Currency      @default(INR)
+  status              PaymentStatus @default(PENDING)
+  failure_code        String?
+  failure_reason      String?
+  attempt_count       Int           @default(1)
+  merchant            Merchant      @relation(fields: [merchant_id], references: [id])
+  customer            Customer      @relation(fields: [customer_id], references: [id])
+  subscription        Subscription? @relation(fields: [subscription_id], references: [id])
+  recoveryCases       RecoveryCase[]
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  @@index([merchant_id, customer_id])
+  @@map("payments")
+}
+model RecoveryCase {
+  id              String            @id @default(cuid()) @map("id")
+  merchant_id     String            @map("merchant_id")
+  customer_id     String            @map("customer_id")
+  payment_id      String            @map("payment_id")
+  status          RecoveryCaseStatus @default(OPEN)
+  risk_amount     Int               @map("risk_amount_minor")
+  currency        Currency          @default(INR)
+  failure_category FailureCategory  @map("failure_category")
+  priority        Priority          @default(MEDIUM)
+  current_strategy String?          @map("current_strategy")
+  next_action_at  DateTime?         @map("next_action_at")
+  assigned_mode   AssignmentMode    @default(AUTONOMOUS) @map("assigned_mode")
+  merchant        Merchant          @relation(fields: [merchant_id], references: [id])
+  customer        Customer          @relation(fields: [customer_id], references: [id])
+  payment         Payment           @relation(fields: [payment_id], references: [id])
+  actions         RecoveryAction[]
+  promises        PromiseToPay[]
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  closedAt        DateTime?         @map("closed_at")
+
+  @@index([merchant_id, status])
+  @@index([merchant_id, customer_id])
+  @@index([next_action_at])
+  @@map("recovery_cases")
+}
+
+model RecoveryAction {
+  id               String            @id @default(cuid()) @map("id")
+  recovery_case_id String            @map("recovery_case_id")
+  type             ActionType
+  status           ActionStatus      @default(SCHEDULED)
+  reason           String?
+  parameters_json  Json?             @map("parameters_json")
+  policy_decision  Json?             @map("policy_decision") // PolicyResult serialized
+  scheduled_at     DateTime?         @map("scheduled_at")
+  executed_at      DateTime?         @map("executed_at")
+  result_json      Json?             @map("result_json")
+  recoveryCase     RecoveryCase      @relation(fields: [recovery_case_id], references: [id], onDelete: Cascade)
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  @@index([recovery_case_id, type, status])
+  @@map("recovery_actions")
+}
+
+model MerchantPolicy {
+  id                                  String     @id @default(cuid()) @map("id")
+  merchant_id                         String     @unique @map("merchant_id")
+  max_payment_retries                 Int        @default(3) @map("max_payment_retries")
+  retry_cooldown_hours                Int        @default(12) @map("retry_cooldown_hours")
+  max_messages_per_period             Int        @default(2) @map("max_messages_per_period")
+  message_period_hours                Int        @default(168) @map("message_period_hours")
+  max_discount_percent                Int        @default(0) @map("max_discount_percent")
+  max_automatic_recovery_amount_minor Int        @default(2000000) @map("max_automatic_recovery_amount_minor")
+  human_escalation_amount_minor       Int        @default(2000000) @map("human_escalation_amount_minor")
+  respect_promise_to_pay              Boolean    @default(true) @map("respect_promise_to_pay")
+  allowed_channels                    Channel[]  @map("allowed_channels")
+  merchant                            Merchant   @relation(fields: [merchant_id], references: [id])
+  createdAt                           DateTime   @default(now()) @map("created_at")
+  updatedAt                           DateTime   @updatedAt @map("updated_at")
+
+  @@map("merchant_policies")
+}
+
+model PromiseToPay {
+  id               String        @id @default(cuid()) @map("id")
+  merchant_id      String        @map("merchant_id")
+  customer_id      String        @map("customer_id")
+  recovery_case_id String?       @map("recovery_case_id")
+  amount           Int?          @map("amount_minor")
+  promised_at      DateTime      @map("promised_at")
+  promised_for     DateTime      @map("promised_for")
+  status           PromiseStatus @default(ACTIVE)
+  source           String
+  confidence       Float
+  merchant         Merchant      @relation(fields: [merchant_id], references: [id])
+  customer         Customer      @relation(fields: [customer_id], references: [id])
+  recoveryCase     RecoveryCase? @relation(fields: [recovery_case_id], references: [id])
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  @@index([customer_id, status])
+  @@map("promise_to_pay")
+}
+
+model ProviderEvent {
+  id             String   @id @default(cuid())
+  provider       String // e.g. "razorpay"
+  idempotency_key String  @unique @map("idempotency_key")
+  event_type     String   @map("event_type")
+  payload        Json
+  processed      Boolean  @default(false)
+  error          String?
+  merchant_id    String?  @map("merchant_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([provider, event_type])
+  @@map("provider_events")
+}
+
+model RevenueLedger {
+  id                 String   @id @default(cuid())
+  merchant_id        String   @map("merchant_id")
+  recovery_case_id   String   @unique @map("recovery_case_id") // one attribution per case — no double counting
+  captured_payment_id String  @map("captured_payment_id")
+  amount_minor       Int      @map("amount_minor")
+  promise_assisted   Boolean  @default(false) @map("promise_assisted")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([merchant_id])
+  @@map("revenue_ledger")
+}
+
+model AuditEvent {
+  id             String      @id @default(cuid()) @map("id")
+  merchant_id    String      @map("merchant_id")
+  actor_type     ActorType   @map("actor_type")
+  actor_id       String      @map("actor_id")
+  event_type     String      @map("event_type")
+  entity_type    String      @map("entity_type")
+  entity_id      String      @map("entity_id")
+  reason         String?
+  input_json     Json?       @map("input_json")
+  decision_json  Json?       @map("decision_json")
+  policy_json    Json?       @map("policy_json")
+  outcome_json   Json?       @map("outcome_json")
+  correlation_id String?     @map("correlation_id")
+  merchant       Merchant    @relation(fields: [merchant_id], references: [id])
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([merchant_id, entity_type, entity_id])
+  @@index([merchant_id, event_type])
+  @@map("audit_events")
+}

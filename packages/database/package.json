@@ -1,0 +1,30 @@
+{
+  "name": "@recoverai/database",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "prisma"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "deploy": "prisma migrate deploy",
+    "seed": "ts-node --transpile-only prisma/seed.ts",
+    "setup": "prisma generate && prisma migrate dev --skip-seed && ts-node --transpile-only prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.20.0",
+    "@recoverai/auth": "workspace:*",
+    "@recoverai/integrations": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "prisma": "^5.20.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}
