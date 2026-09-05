@@ -129,12 +129,26 @@ export class OrchestratorService {
       }
     }
 
-    // Deterministic guarantee: every failure gets email outreach.
-    // If the LLM/policy didn't schedule a communication action, force SEND_EMAIL.
+    // Deterministic guarantee: every failure gets email outreach — but the
+    // forced email must pass the same deterministic policy gate (spec §19).
+    // An active Promise-to-Pay therefore suppresses it instead of bypassing it.
     const isScheduledCommunication = scheduledAction &&
       ['SEND_EMAIL', 'SEND_WHATSAPP', 'REQUEST_PAYMENT_METHOD_UPDATE'].includes(scheduledAction.type);
     if (!isScheduledCommunication) {
-      scheduledAction = { type: RecoveryActionType.SEND_EMAIL, executeAt: addHours(now, 5 / 60) };
+      const forced = { type: RecoveryActionType.SEND_EMAIL, executeAt: addHours(now, 5 / 60) };
+      const forcedResult = this.policy.evaluate(forced, {
+        recoveryCase: domainCase,
+        policy: domainPolicy,
+        now,
+        retryCount,
+        lastRetryAt: lastRetry,
+        messageCountInPeriod: messageCount,
+        firstMessageAtInPeriod: null,
+        activePromise: domainPromise,
+        existingActions: actions.map((a) => ({ type: a.type as RecoveryActionType, status: a.status as never })),
+      });
+      gateResult = forcedResult;
+      scheduledAction = forcedResult.decision === PolicyDecision.ALLOWED ? forced : null;
     }
 
     // 4. Persist decision + audit trail. The gate outcome is final.
