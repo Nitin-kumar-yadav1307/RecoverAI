@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getCases, runAgent, token, OrchestratorResult, CaseRow } from '../../../lib/api';
 
-const inr = (minor: number) => `\u20B9${(minor / 100).toLocaleString('en-IN')}`;
+const inr = (amountInr: number) => `\u20B9${amountInr.toLocaleString('en-IN')}`;
 
 const STEPS = ['DIAGNOSE', 'STRATEGIZE', 'POLICY_GATE', 'SCHEDULE'] as const;
 

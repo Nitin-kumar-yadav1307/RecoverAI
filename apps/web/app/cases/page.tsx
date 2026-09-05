@@ -12,7 +12,7 @@ interface Analytics {
   promises: { active: number; fulfilled: number; broken: number };
 }
 
-const inr = (minor: number) => `₹${(minor / 100).toLocaleString('en-IN')}`;
+const inr = (amountInr: number) => `₹${amountInr.toLocaleString('en-IN')}`;
 
 export default function CasesPage() {
   const router = useRouter();

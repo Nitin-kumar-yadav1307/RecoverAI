@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { getAnalytics, getCases, token, CaseRow } from '../../lib/api';
 
 interface Analytics { totalCases: number; recoveredCases: number; recoveryRatePct: number; revenueRecoveredInr: number; byCategory: { category: string; count: number }[]; promises: { active: number; fulfilled: number; broken: number }; }
-const inr = (minor: number) => `₹${(minor / 100).toLocaleString('en-IN')}`;
+const inr = (amountInr: number) => `₹${amountInr.toLocaleString('en-IN')}`;
 
 export default function AnalyticsPage() {
   const router = useRouter();
