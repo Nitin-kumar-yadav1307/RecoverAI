@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
-    "deploy": "prisma migrate deploy",
+    "migrate:deploy": "prisma migrate deploy",
     "seed": "ts-node --transpile-only prisma/seed.ts",
     "setup": "prisma generate && prisma migrate dev --skip-seed && ts-node --transpile-only prisma/seed.ts"
   },

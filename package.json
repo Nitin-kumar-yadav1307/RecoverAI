@@ -13,6 +13,7 @@
     "build:domain": "pnpm --filter @recoverai/domain build",
     "test:domain": "pnpm --filter @recoverai/domain test",
     "db:generate": "pnpm --filter @recoverai/database generate",
+    "db:migrate:deploy": "pnpm --filter @recoverai/database migrate:deploy",
     "db:setup": "pnpm --filter @recoverai/database setup",
     "postinstall": "pnpm db:generate"
   },
