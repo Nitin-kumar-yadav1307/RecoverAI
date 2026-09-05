@@ -15,7 +15,8 @@ import type { RecoveryAction, ActionStatus as PrismaActionStatus } from '@prisma
  * A lightweight poller picks up SCHEDULED actions whose scheduled_at has
  * arrived and executes them:
  *   - RETRY_PAYMENT  -> real Razorpay retry (or mock when PAYMENT_PROVIDER=mock)
- *   - SEND_* / REQUEST_* -> simulator (no real email/sms provider yet)
+ *   - SEND_EMAIL / REQUEST_PAYMENT_METHOD_UPDATE -> real Resend email
+ *   - SEND_WHATSAPP  -> simulator (no real WhatsApp provider yet)
  *   - ESCALATE / CLOSE   -> terminal bookkeeping
  *
  * Outcomes are persisted (action status + result), audited, and the case is
@@ -94,8 +95,12 @@ export class ActionExecutorService implements OnModuleInit, OnModuleDestroy {
           outcome = await this.executeSendEmail(action);
           break;
         case 'SEND_WHATSAPP':
+          outcome = { ok: true, result: { channel: 'simulated' } }; // simulator only (no real WhatsApp provider yet)
+          break;
         case 'REQUEST_PAYMENT_METHOD_UPDATE':
-          outcome = { ok: true, result: { channel: 'simulated' } }; // simulator only (no real provider yet)
+          // Real outreach: policy channels for this action include EMAIL, so
+          // deliver the payment-method-update request as a branded email.
+          outcome = await this.executeSendEmail(action);
           break;
         case 'ESCALATE':
         case 'CLOSE':
