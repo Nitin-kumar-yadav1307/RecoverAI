@@ -146,7 +146,9 @@ export class OrchestratorService {
 
     let createdActionId: string | null = null;
     if (scheduledAction) {
-      const rationale = strategy.actions.find((a) => a.type === scheduledAction!.type)?.rationale;
+      const rationale = strategy.actions.find(
+        (a: { type: string; delayHours?: number; rationale: string }) => a.type === scheduledAction!.type,
+      )?.rationale;
       const action = await this.prisma.recoveryAction.create({
         data: {
           recovery_case_id: caseId,
