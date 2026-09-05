@@ -20,7 +20,10 @@ export function buildActionIdempotencyKey(caseId: string, actionId: string): str
 
 /**
  * Deterministic pre-execution guard: reject an action if an identical,
- * non-terminal action type already exists on the case.
+ * still-in-flight action already exists on the case. Terminal outcomes
+ * (SUCCEEDED / FAILED / CANCELLED) do not block — a follow-up action of
+ * the same type is a new action, not a re-execution (spec §16); message
+ * caps bound its frequency.
  */
 export function isDuplicateAction(
   existingActions: ReadonlyArray<{
@@ -32,6 +35,6 @@ export function isDuplicateAction(
   return existingActions.some(
     (a) =>
       a.type === candidateType &&
-      ['SCHEDULED', 'APPROVED', 'EXECUTING', 'SUCCEEDED'].includes(a.status),
+      ['SCHEDULED', 'APPROVED', 'EXECUTING'].includes(a.status),
   );
 }

@@ -30,6 +30,7 @@ describe('Idempotency (spec §16)', () => {
         [
           { type: RecoveryActionType.RETRY_PAYMENT, status: ActionStatus.CANCELLED },
           { type: RecoveryActionType.RETRY_PAYMENT, status: ActionStatus.FAILED },
+          { type: RecoveryActionType.RETRY_PAYMENT, status: ActionStatus.SUCCEEDED },
         ],
         RecoveryActionType.RETRY_PAYMENT,
       ),

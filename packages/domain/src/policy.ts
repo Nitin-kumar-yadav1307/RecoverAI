@@ -83,7 +83,7 @@ export class InMemoryPolicyEngine implements PolicyEngine {
 
     // 1. Duplicate action guard (spec §16).
     if (isDuplicateAction(ctx.existingActions, proposal.type)) {
-      reasons.push(`Duplicate action blocked: an identical '${proposal.type}' is active or resolved.`);
+      reasons.push(`Duplicate action blocked: an identical '${proposal.type}' is already in flight.`);
       return { decision: PolicyDecision.BLOCKED, reasons, constraints };
     }
 
